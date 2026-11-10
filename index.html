@@ -1,0 +1,830 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#10131b">
+  <title>Guitar Tab Visualizer</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c0f16;
+      --panel: #151a25;
+      --line: #657187;
+      --muted: #9aa6b8;
+      --text: #f3f5fa;
+      --accent: #8b7cff;
+      --accent-2: #b0a6ff;
+      --red: #ff5364;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(
+        ellipse at 50% -15%, #242344 0%, var(--bg) 48%
+      );
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+    }
+
+    main {
+      width: min(1080px, calc(100% - 36px));
+      margin: 0 auto;
+      flex: 1;
+      padding: 54px 0 42px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 34px;
+    }
+
+    .eyebrow {
+      color: var(--accent-2);
+      text-transform: uppercase;
+      letter-spacing: .2em;
+      font-size: .72rem;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 10px 0 8px;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      letter-spacing: -.045em;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .chord-controls {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .chord-button {
+      min-height: 58px;
+      border: 1px solid #30394b;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #202738, #171d29);
+      color: #e8eaf2;
+      font-size: 1.25rem;
+      font-weight: 750;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+
+    .chord-button:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .chord-button[aria-pressed="true"] {
+      color: white;
+      border-color: var(--accent);
+      background: linear-gradient(145deg, #7668ed, #5547bb);
+      box-shadow: 0 8px 24px #6659dc40;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(270px, .85fr);
+      gap: 18px;
+    }
+
+    .panel {
+      min-width: 0;
+      padding: 24px;
+      border: 1px solid #293244;
+      border-radius: 20px;
+      background: linear-gradient(160deg, #1a202d, #121722);
+      box-shadow: 0 18px 50px #00000024;
+    }
+
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .tag {
+      color: #c2bbff;
+      background: #7568ed20;
+      border: 1px solid #7568ed55;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 700;
+    }
+
+    .tab-wrap {
+      overflow-x: auto;
+      padding: 10px 0 6px;
+    }
+
+    .tab-layout {
+      display: grid;
+      grid-template-columns: 36px minmax(360px, 1fr);
+      gap: 12px;
+      align-items: stretch;
+      min-width: 410px;
+    }
+
+    .tab-letters {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: var(--accent-2);
+      font-weight: 900;
+      font-size: 1.15rem;
+      line-height: 1.5;
+      letter-spacing: .08em;
+    }
+
+    .strings {
+      display: grid;
+      grid-template-rows: repeat(6, 42px);
+    }
+
+    .string-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .string-row:first-child {
+      border-top: 1px solid var(--line);
+    }
+
+    .string-name {
+      position: absolute;
+      left: 0;
+      transform: translateX(-30px);
+      color: var(--muted);
+      font-size: .68rem;
+      width: 22px;
+      text-align: right;
+    }
+
+    .fret-value {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 29px;
+      height: 29px;
+      margin-left: 42px;
+      border-radius: 8px;
+      color: white;
+      background: #6558d5;
+      font-size: .88rem;
+      font-weight: 800;
+      box-shadow: 0 3px 12px #6558d555;
+    }
+
+    .fret-value.muted {
+      color: #aab3c2;
+      background: #343d4d;
+      box-shadow: none;
+    }
+
+    .tab-note {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: 15px;
+    }
+
+    .diagram-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diagram-title {
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      margin-bottom: 3px;
+    }
+
+    .diagram-title strong {
+      font-size: 1.55rem;
+    }
+
+    .diagram-title span,
+    .diagram-subtitle {
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    .diagram-subtitle {
+      margin-bottom: 8px;
+    }
+
+    .diagram {
+      width: 100%;
+      max-width: 320px;
+      margin: 0 auto;
+      display: block;
+    }
+
+    .diagram line {
+      stroke: #9aa6b8;
+      stroke-width: 1.6;
+    }
+
+    .diagram .nut {
+      stroke: #e2e6ef;
+      stroke-width: 5;
+    }
+
+    .diagram .fret-number,
+    .diagram .string-label {
+      fill: #aeb8c8;
+      font-size: 11px;
+      text-anchor: middle;
+    }
+
+    .diagram .marker {
+      fill: var(--red);
+      stroke: #ffd7dc;
+      stroke-width: 1.2;
+    }
+
+    .diagram .finger-number {
+      fill: white;
+      font-size: 9px;
+      font-weight: 800;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .diagram .open-marker {
+      fill: none;
+      stroke: #e5e9f2;
+      stroke-width: 1.8;
+    }
+
+    .diagram .muted-marker {
+      stroke: #aeb8c8;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: .72rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    .legend-ring {
+      width: 9px;
+      height: 9px;
+      border: 1.5px solid #e5e9f2;
+      border-radius: 50%;
+    }
+
+    .legend-x {
+      font-weight: 800;
+      color: #aeb8c8;
+    }
+
+    footer {
+      padding: 22px 16px 26px;
+      text-align: center;
+      color: #8994a7;
+      font-size: .83rem;
+    }
+
+    footer span { color: var(--red); }
+
+    @media (max-width: 720px) {
+      main { padding-top: 36px; }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .diagram-panel { min-height: 390px; }
+      .diagram { max-width: 290px; }
+    }
+
+    @media (max-width: 430px) {
+      main { width: calc(100% - 22px); }
+
+      .chord-controls { gap: 6px; }
+
+      .chord-button {
+        min-height: 52px;
+        border-radius: 11px;
+      }
+
+      .panel { padding: 18px 14px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main>
+
+    <header>
+      <div class="eyebrow">Practice · Explore · Play</div>
+      <h1>Guitar Tab Visualizer</h1>
+      <p>Select a chord to see its tab and finger positions.</p>
+    </header>
+
+    <!-- CHORD BUTTONS -->
+
+    <nav class="chord-controls" aria-label="Choose a chord">
+      <button class="chord-button" data-chord="C" aria-pressed="true">C</button>
+      <button class="chord-button" data-chord="D" aria-pressed="false">D</button>
+      <button class="chord-button" data-chord="E" aria-pressed="false">E</button>
+      <button class="chord-button" data-chord="F" aria-pressed="false">F</button>
+      <button class="chord-button" data-chord="G" aria-pressed="false">G</button>
+      <button class="chord-button" data-chord="A" aria-pressed="false">A</button>
+      <button class="chord-button" data-chord="B" aria-pressed="false">B</button>
+    </nav>
+
+    <!-- TAB AND DIAGRAM -->
+
+    <section class="workspace" aria-live="polite">
+
+      <article class="panel">
+
+        <div class="panel-heading">
+          <h2 id="tab-heading">C major · Guitar tab</h2>
+          <span class="tag">STANDARD TUNING</span>
+        </div>
+
+        <div class="tab-wrap">
+          <div class="tab-layout">
+
+            <div class="tab-letters">
+              <span>T</span>
+              <span>A</span>
+              <span>B</span>
+            </div>
+
+            <div class="strings" id="tab-strings"></div>
+
+          </div>
+        </div>
+
+        <p class="tab-note">
+          Read from top to bottom: high E, B, G, D, A, low E.
+          X = do not play; 0 = open string.
+        </p>
+
+      </article>
+
+      <article class="panel diagram-panel">
+
+        <div class="panel-heading">
+          <h2>Chord diagram</h2>
+          <span class="tag">FINGERING</span>
+        </div>
+
+        <div class="diagram-title">
+          <strong id="diagram-chord">C</strong>
+          <span id="diagram-quality">Major chord</span>
+        </div>
+
+        <p class="diagram-subtitle">
+          Strings: low E → high E
+        </p>
+
+        <svg
+          class="diagram"
+          id="chord-diagram"
+          viewBox="0 0 300 300"
+          role="img"
+          aria-label="C major chord fingering diagram">
+        </svg>
+
+        <div class="legend">
+          <span><i class="legend-dot"></i> Finger</span>
+          <span><i class="legend-ring"></i> Open</span>
+          <span><b class="legend-x">×</b> Muted</span>
+        </div>
+
+      </article>
+
+    </section>
+
+  </main>
+
+  <footer>
+    Made with <span>♥</span> by Sam
+  </footer>
+
+  <!-- JAVASCRIPT -->
+
+  <script>
+
+    // Finger positions are stored from low E to high E.
+    // 0 = open string
+    // -1 = muted string
+
+    const chords = {
+
+      C: {
+        name: "C major",
+        frets: [-1, 3, 2, 0, 1, 0],
+        fingers: [0, 3, 2, 0, 1, 0]
+      },
+
+      D: {
+        name: "D major",
+        frets: [-1, -1, 0, 2, 3, 2],
+        fingers: [0, 0, 0, 1, 3, 2]
+      },
+
+      E: {
+        name: "E major",
+        frets: [0, 2, 2, 1, 0, 0],
+        fingers: [0, 2, 3, 1, 0, 0]
+      },
+
+      F: {
+        name: "F major",
+        frets: [1, 3, 3, 2, 1, 1],
+        fingers: [1, 3, 4, 2, 1, 1]
+      },
+
+      G: {
+        name: "G major",
+        frets: [3, 2, 0, 0, 0, 3],
+        fingers: [2, 1, 0, 0, 0, 3]
+      },
+
+      A: {
+        name: "A major",
+        frets: [-1, 0, 2, 2, 2, 0],
+        fingers: [0, 0, 1, 2, 3, 0]
+      },
+
+      B: {
+        name: "B major",
+        frets: [-1, 2, 4, 4, 4, 2],
+        fingers: [0, 1, 3, 3, 3, 1]
+      }
+
+    };
+
+    const stringNamesTopDown = [
+      "e", "B", "G", "D", "A", "E"
+    ];
+
+    const tabStrings =
+      document.getElementById("tab-strings");
+
+    const diagram =
+      document.getElementById("chord-diagram");
+
+    const tabHeading =
+      document.getElementById("tab-heading");
+
+    const diagramChord =
+      document.getElementById("diagram-chord");
+
+    const diagramQuality =
+      document.getElementById("diagram-quality");
+
+
+    // GENERATE GUITAR TAB
+
+    function renderTab(chord) {
+
+      tabStrings.replaceChildren();
+
+      // Display high E → low E.
+      // Data is stored low E → high E.
+
+      for (let visualIndex = 0; visualIndex < 6; visualIndex++) {
+
+        const dataIndex = 5 - visualIndex;
+
+        const fret = chord.frets[dataIndex];
+
+        const row = document.createElement("div");
+
+        row.className = "string-row";
+
+        row.innerHTML = `
+          <span class="string-name">
+            ${stringNamesTopDown[visualIndex]}
+          </span>
+        `;
+
+        const value = document.createElement("span");
+
+        value.className =
+          "fret-value" + (fret === -1 ? " muted" : "");
+
+        value.textContent =
+          fret === -1 ? "X" : String(fret);
+
+        row.appendChild(value);
+
+        tabStrings.appendChild(row);
+
+      }
+
+    }
+
+
+    // GENERATE CHORD DIAGRAM
+
+    function renderDiagram(chord) {
+
+      const left = 58;
+      const right = 242;
+      const top = 66;
+      const bottom = 226;
+
+      const stringGap = (right - left) / 5;
+      const fretGap = (bottom - top) / 5;
+
+      const x = index => left + index * stringGap;
+
+      const y = fret =>
+        top + (fret - 0.5) * fretGap;
+
+      let svg = "";
+
+      // String labels
+
+      ["E", "A", "D", "G", "B", "e"].forEach(
+        (label, i) => {
+
+          svg += `
+            <text
+              class="string-label"
+              x="${x(i)}"
+              y="35">
+              ${label}
+            </text>
+          `;
+
+        }
+      );
+
+      // Six vertical strings
+
+      for (let i = 0; i < 6; i++) {
+
+        svg += `
+          <line
+            x1="${x(i)}"
+            y1="${top}"
+            x2="${x(i)}"
+            y2="${bottom}">
+          </line>
+        `;
+
+      }
+
+      // Five horizontal frets
+
+      for (let fret = 0; fret <= 5; fret++) {
+
+        const yy = top + fret * fretGap;
+
+        svg += `
+          <line
+            class="${fret === 0 ? "nut" : ""}"
+            x1="${left}"
+            y1="${yy}"
+            x2="${right}"
+            y2="${yy}">
+          </line>
+        `;
+
+      }
+
+      // Fret numbers
+
+      for (let fret = 1; fret <= 5; fret++) {
+
+        svg += `
+          <text
+            class="fret-number"
+            x="270"
+            y="${y(fret) + 4}">
+            ${fret}
+          </text>
+        `;
+
+      }
+
+      // Open and muted strings
+
+      chord.frets.forEach((fret, i) => {
+
+        if (fret === 0) {
+
+          svg += `
+            <circle
+              class="open-marker"
+              cx="${x(i)}"
+              cy="52"
+              r="6">
+            </circle>
+          `;
+
+        } else if (fret === -1) {
+
+          svg += `
+            <path
+              class="muted-marker"
+              d="
+                M ${x(i)-5} 46 L ${x(i)+5} 56
+                M ${x(i)+5} 46 L ${x(i)-5} 56
+              ">
+            </path>
+          `;
+
+        }
+
+      });
+
+      // Finger placement dots
+
+      chord.frets.forEach((fret, i) => {
+
+        if (fret > 0) {
+
+          const finger = chord.fingers[i] || "";
+
+          svg += `
+            <circle
+              class="marker"
+              cx="${x(i)}"
+              cy="${y(fret)}"
+              r="10">
+            </circle>
+          `;
+
+          if (finger) {
+
+            svg += `
+              <text
+                class="finger-number"
+                x="${x(i)}"
+                y="${y(fret)}">
+                ${finger}
+              </text>
+            `;
+
+          }
+
+        }
+
+      });
+
+      // Barre indication for F major
+
+      if (chord === chords.F) {
+
+        svg += `
+          <line
+            x1="${x(0)}"
+            y1="${y(1)}"
+            x2="${x(5)}"
+            y2="${y(1)}"
+            stroke="#ff5364"
+            stroke-width="8"
+            stroke-linecap="round"
+            opacity=".82">
+          </line>
+        `;
+
+      }
+
+      // Barre indication for B major
+
+      if (chord === chords.B) {
+
+        svg += `
+          <line
+            x1="${x(1)}"
+            y1="${y(2)}"
+            x2="${x(5)}"
+            y2="${y(2)}"
+            stroke="#ff5364"
+            stroke-width="8"
+            stroke-linecap="round"
+            opacity=".82">
+          </line>
+        `;
+
+      }
+
+      diagram.innerHTML = svg;
+
+      diagram.setAttribute(
+        "aria-label",
+        `${chord.name} chord diagram`
+      );
+
+    }
+
+
+    // CHORD SELECTION
+
+    function selectChord(letter) {
+
+      const chord = chords[letter];
+
+      if (!chord) return;
+
+      // Update active button
+
+      document.querySelectorAll(".chord-button").forEach(
+        button => {
+
+          button.setAttribute(
+            "aria-pressed",
+            String(button.dataset.chord === letter)
+          );
+
+        }
+      );
+
+      // Update headings
+
+      tabHeading.textContent =
+        `${chord.name} · Guitar tab`;
+
+      diagramChord.textContent = letter;
+
+      diagramQuality.textContent = "Major chord";
+
+      // Update both visualizations
+
+      renderTab(chord);
+
+      renderDiagram(chord);
+
+    }
+
+
+    // Attach click events
+
+    document.querySelectorAll(".chord-button").forEach(
+      button => {
+
+        button.addEventListener("click", () => {
+
+          selectChord(button.dataset.chord);
+
+        });
+
+      }
+    );
+
+
+    // DEFAULT CHORD: C MAJOR
+
+    selectChord("C");
+
+  </script>
+
+</body>
+</html>
+
