@@ -17,6 +17,7 @@ open the page, click a chord button, look at the picture, and play your guitar. 
 modifying it
 
 if you want to add minor chords or change the css just open index.html or script.js in vs code or notepad and edit it. it's just basic html/js so it's easy to mess around with.
+<img width="1911" height="1078" alt="image" src="https://github.com/user-attachments/assets/c025bc8f-e64d-4d43-8589-720adf13c1b5" />
 
 license
 
